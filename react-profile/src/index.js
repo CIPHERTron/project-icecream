@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { ImagePicker } from 'react-file-picker';
 import jimp from 'jimp';
 import Cropper from 'react-easy-crop';
 import getCroppedImg from './cropImage';
@@ -8,11 +7,20 @@ import { triggerBase64Download } from 'react-base64-downloader';
 
 function App() {
   const [imgSrc, setImgSrc] = useState(null);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(0.4);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [aspect, setAspect] = useState(1 / 1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [uploadImage, setUploadImage] = useState(null);
+
+  useEffect(() => {
+    const input = document.querySelector('input');
+
+    input.addEventListener('change', () => {
+      setUploadImage(URL.createObjectURL(input.files[0]));
+      console.log(input.files);
+    });
+  }, []);
 
   const onCropComplete = (croppedArea, croppedAreaPixels) =>
     setCroppedAreaPixels(croppedAreaPixels);
@@ -25,7 +33,10 @@ function App() {
       const frame = image1.resize(3840, 3840);
 
       const image2 = await jimp.read(cropImage);
-      const profile = image2.resize(3072, 3072).greyscale();
+      const profile = image2
+        .resize(3840, 3840)
+        .crop(384, 384, 3072, 3072)
+        .greyscale();
 
       frame.composite(profile, 384, 384, {
         mode: jimp.BLEND_DESTINATION_OVER,
@@ -43,20 +54,16 @@ function App() {
 
   return (
     <div>
-      <img
-        src={'/frame.png'}
-        alt='adfhkjadhfk'
+      <div
         style={{
-          width: 512,
           height: 512,
-          position: 'absolute',
-          top: 0,
-          left: 0,
+          overflow: 'hidden',
         }}
-      />
-      <div style={{ height: 453, width: 453, position: 'relative' }}>
+      >
         <Cropper
           image={uploadImage}
+          minZoom={0.4}
+          restrictPosition={false}
           crop={crop}
           zoom={zoom}
           aspect={aspect}
@@ -64,37 +71,38 @@ function App() {
           onCropComplete={onCropComplete}
           onZoomChange={(zoom) => setZoom(zoom)}
           style={{
-            cropAreaStyle: {
-              width: '100%',
-              height: '100%',
-            },
             containerStyle: {
-              position: 'absolute',
-              top: 43,
-              left: 41,
+              width: 512,
+              height: 512,
+              overflow: 'hidden',
+              marginTop: 8,
+              backgroundColor: '#000',
             },
             mediaStyle: {
-              width: '100%',
-              height: '100%',
+              objectFit: 'cover',
+              objectPosition: 'center top',
+            },
+            cropAreaStyle: {
+              backgroundImage: 'url(/frame.png)',
+              backgroundPosition: 'center',
+              backgroundSize: 'cover',
+              width: 512,
+              height: 512,
             },
           }}
         />
       </div>
-      <div style={{ marginTop: 100 }}>
-        <ImagePicker
-          extensions={['jpg', 'jpeg', 'png']}
-          dims={{
-            minWidth: 100,
-            maxWidth: 3840,
-            minHeight: 100,
-            maxHeight: 3840,
-          }}
-          onChange={(base64) => setUploadImage(base64)}
-          onError={(errMsg) => console.log(errMsg)}
-        >
-          <button>Click to upload image</button>
-        </ImagePicker>
+
+      <div style={{ marginTop: 50 }}>
+        <label>upload image</label>
+        <input
+          type='file'
+          accept='image/png image/jpeg image/jpg'
+          alt='Image'
+          placeholder='Upload Image'
+        />
       </div>
+
       <div>
         <button
           onClick={async () => {
